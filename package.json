@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "next build",
+    "build:vercel": "npm run db:migrate:production && next build",
     "start": "next start",
     "postinstall": "prisma generate",
     "test": "vitest run",

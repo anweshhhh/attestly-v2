@@ -47,7 +47,7 @@
 - The phase-1 trust-pack wedge is now functionally implemented through review, approval, and buyer-safe Markdown export on immutable generated versions.
 - Supporting docs are aligned to that shipped runtime, and the launch platform has now been migrated from SQLite/local uploads assumptions to Vercel-compatible Neon Postgres plus Vercel Blob.
 - Verified Google OAuth, workspace/RBAC behavior, evidence processing, generation, approval, and Markdown export have all been re-verified on the migrated stack.
-- The remaining launch step is operational rather than product-facing: run `npm run db:migrate:production` against the live Neon database before production traffic, then retry the launch runbook on that deployment and monitor the shipped wedge.
+- The remaining launch step is operational rather than product-facing: ensure `DIRECT_DATABASE_URL` is present in Vercel and trigger a fresh deployment, which will now run `npm run db:migrate:production` before the app build, then retry the launch runbook on that deployment and monitor the shipped wedge.
 
 ## Out of scope right now
 - broad claim editing and version-history browsing
@@ -61,4 +61,4 @@
 ## Current status note
 - No new product scope was added in the latest task; it was a narrow deployment-fix patch for production migration execution and launch wiring.
 - Phase 1 remains complete and stable.
-- The current wedge should succeed on Vercel once the live Neon schema is applied with `npm run db:migrate:production` and the existing production env is set correctly.
+- The current wedge should succeed on Vercel once the live Neon schema is applied through the checked-in Vercel build path and the existing production env is set correctly.

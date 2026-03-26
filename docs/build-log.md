@@ -2,13 +2,14 @@
 
 ## 2026-03-26 - Production migration command and launch wiring cleanup
 - What changed:
-  Tightened the checked-in Postgres migration runner so the production migration path now requires `DIRECT_DATABASE_URL`, added one explicit production command, and updated the deployment docs to make the Neon schema step unambiguous.
-  The README, launch runbook, env example, and handoff docs now all point operators to the same exact pre-launch command for production Neon migrations.
+  Tightened the checked-in Postgres migration runner so the production migration path now requires `DIRECT_DATABASE_URL`, added one explicit production command, and wired Vercel builds to run that command automatically before `next build`.
+  The README, launch runbook, env example, and handoff docs now all point operators to the same Neon migration path for production launches.
 - Why it changed:
   Vercel production reached the Google OAuth callback, but login failed because the Neon production database was missing the applied schema.
   The runner itself already targeted the checked-in Postgres migrations; this patch removes operator ambiguity so production tables are created before launch traffic hits the app.
 - Files touched:
   `package.json`
+  `vercel.json`
   `.env.example`
   `README.md`
   `scripts/apply-postgres-migrations.mjs`
@@ -19,14 +20,15 @@
 - Assumptions introduced:
   Production deploys now have one canonical migration command: `npm run db:migrate:production`.
   `DATABASE_URL` remains the pooled Neon runtime URL, while `DIRECT_DATABASE_URL` is now treated as mandatory for the production migration path rather than an optional fallback.
+  The checked-in Vercel build path now depends on `DIRECT_DATABASE_URL` being present at build time so migrations can run before the app build completes.
 - Risks / watchouts:
-  Login will still fail on production until `npm run db:migrate:production` has been run successfully against the live Neon database.
+  Login will still fail on production until a Vercel deploy or manual command has run `npm run db:migrate:production` successfully against the live Neon database.
   Vercel env wiring still needs the correct pooled/direct Neon URLs in the right variables.
 - Tests run:
   `npm run db:migrate:production -- --help`
   `DATABASE_URL='postgresql://user:password@localhost:5432/attestly' npm run db:migrate:deploy`
 - Next step:
-  Set `DATABASE_URL` to the pooled Neon URL, set `DIRECT_DATABASE_URL` to the direct Neon URL, then run `npm run db:migrate:production` against production before retrying Google OAuth login.
+  Set `DATABASE_URL` to the pooled Neon URL, set `DIRECT_DATABASE_URL` to the direct Neon URL, trigger a fresh Vercel deployment, and then retry Google OAuth login.
 
 ## 2026-03-25 - Deployment-platform migration to Neon Postgres and Vercel Blob
 - What changed:

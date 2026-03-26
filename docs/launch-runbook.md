@@ -41,9 +41,11 @@ Local development values:
 ### Build and startup sequence
 1. `npm install`
 2. `npm run prisma:generate`
-3. `npm run db:migrate:production` against the target Neon database from CI or a trusted operator shell
-4. Deploy on Vercel with `npm run build`
+3. Set `DIRECT_DATABASE_URL` to the direct Neon connection string in the Vercel project
+4. Deploy on Vercel with the checked-in `build:vercel` command from `vercel.json`, which runs `npm run db:migrate:production` before `next build`
 5. Use `npm start` only for local production simulation, not for the Vercel-hosted production path
+
+If the Vercel dashboard currently overrides the Build Command, set it to `npm run build:vercel` or clear the override so `vercel.json` is honored.
 
 ### Export/download runtime note
 - Markdown export is generated in memory and streamed directly from the approved or exported version
@@ -61,7 +63,7 @@ Expected: the app can connect to Neon and Vercel Blob with the configured creden
 Launch blocker: invalid pooled/direct DB URL, missing Blob token, or wrong project/store configuration
 
 3. Apply migrations
-Command: `npm run db:migrate:production`
+Command: `npm run db:migrate:production` or trigger a Vercel deployment that uses `npm run build:vercel`
 Expected: migration runner completes successfully
 Launch blocker: migration failure, wrong database path, or `DIRECT_DATABASE_URL` missing
 

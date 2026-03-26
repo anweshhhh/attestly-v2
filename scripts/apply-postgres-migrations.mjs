@@ -10,9 +10,35 @@ const projectRoot = path.resolve(__dirname, "..");
 const migrationsRoot = path.join(projectRoot, "prisma", "postgres-migrations");
 const migrationTable = "_attestly_sql_migrations";
 
-function getMigrationDatabaseUrl() {
+function parseArgs(argv) {
+  return {
+    help: argv.includes("--help") || argv.includes("-h"),
+    requireDirectUrl: argv.includes("--require-direct-url")
+  };
+}
+
+function printHelp() {
+  console.log(`Usage: node scripts/apply-postgres-migrations.mjs [--require-direct-url]
+
+Applies the checked-in SQL migrations from prisma/postgres-migrations.
+
+Options:
+  --require-direct-url  Require DIRECT_DATABASE_URL and refuse to fall back to DATABASE_URL.
+                        Use this for production Neon migrations.
+  -h, --help            Show this help text.`);
+}
+
+function getMigrationDatabaseConfig({ requireDirectUrl }) {
   const directUrl = process.env.DIRECT_DATABASE_URL?.trim();
   const databaseUrl = process.env.DATABASE_URL?.trim();
+
+  if (requireDirectUrl && !directUrl) {
+    throw new Error(
+      "DIRECT_DATABASE_URL is required for production Postgres migrations. " +
+        "Set it to the direct Neon connection string and rerun npm run db:migrate:production."
+    );
+  }
+
   const connectionString = directUrl || databaseUrl;
 
   if (!connectionString) {
@@ -23,7 +49,10 @@ function getMigrationDatabaseUrl() {
     throw new Error("Postgres migrations require a postgres:// or postgresql:// connection string.");
   }
 
-  return connectionString;
+  return {
+    connectionString,
+    source: directUrl ? "DIRECT_DATABASE_URL" : "DATABASE_URL"
+  };
 }
 
 async function listMigrationFiles() {
@@ -96,8 +125,16 @@ async function applyMigration(client, migration) {
 }
 
 async function main() {
-  const connectionString = getMigrationDatabaseUrl();
+  const args = parseArgs(process.argv.slice(2));
+
+  if (args.help) {
+    printHelp();
+    return;
+  }
+
+  const { connectionString, source } = getMigrationDatabaseConfig(args);
   const client = new Client({ connectionString });
+  console.log(`Using ${source} for Postgres migrations.`);
   await client.connect();
 
   try {

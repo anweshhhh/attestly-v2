@@ -10,7 +10,8 @@
     "test": "vitest run",
     "prisma:generate": "prisma generate",
     "db:init": "node scripts/apply-postgres-migrations.mjs",
-    "db:migrate:deploy": "node scripts/apply-postgres-migrations.mjs",
+    "db:migrate:deploy": "node scripts/apply-postgres-migrations.mjs --require-direct-url",
+    "db:migrate:production": "node scripts/apply-postgres-migrations.mjs --require-direct-url",
     "db:reset:local": "node scripts/reset-postgres-database.mjs"
   },
   "dependencies": {

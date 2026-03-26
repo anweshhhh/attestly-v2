@@ -41,7 +41,7 @@ Local development values:
 ### Build and startup sequence
 1. `npm install`
 2. `npm run prisma:generate`
-3. `npm run db:migrate:deploy` against the target Neon database from CI or a trusted operator shell
+3. `npm run db:migrate:production` against the target Neon database from CI or a trusted operator shell
 4. Deploy on Vercel with `npm run build`
 5. Use `npm start` only for local production simulation, not for the Vercel-hosted production path
 
@@ -61,9 +61,9 @@ Expected: the app can connect to Neon and Vercel Blob with the configured creden
 Launch blocker: invalid pooled/direct DB URL, missing Blob token, or wrong project/store configuration
 
 3. Apply migrations
-Command: `npm run db:migrate:deploy`
+Command: `npm run db:migrate:production`
 Expected: migration runner completes successfully
-Launch blocker: migration failure or wrong database path
+Launch blocker: migration failure, wrong database path, or `DIRECT_DATABASE_URL` missing
 
 4. Build production artifact
 Command: `npm run build`
@@ -96,6 +96,7 @@ Run this on the real launch environment with one verified Google account.
 ## Stop-Ship vs Monitor
 
 ### Stop-ship issues
+- Production migrations were not applied, including login failures caused by missing tables such as `public.User`
 - Sign-in or callback failure on the real launch domain
 - Workspace cannot be opened after login
 - Evidence upload or processing fails for normal documents

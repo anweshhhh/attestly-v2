@@ -66,7 +66,7 @@ Deployment sequence:
 
 1. Install dependencies: `npm install`
 2. Generate Prisma client: `npm run prisma:generate`
-3. Apply Postgres migrations against Neon from a trusted shell or CI step: `npm run db:migrate:deploy`
+3. Apply Postgres migrations against Neon from a trusted shell or CI step: `npm run db:migrate:production`
 4. Deploy to Vercel with `npm run build` as the build command
 5. Use `npm start` only for local production simulation outside Vercel
 
@@ -74,11 +74,14 @@ Hosted runtime notes:
 
 - `DATABASE_URL` should be the pooled Neon URL used by the app runtime.
 - `DIRECT_DATABASE_URL` should be the direct Neon URL used when applying deploy-time migrations.
+- Run `npm run db:migrate:production` before the first production launch and again after every checked-in Postgres schema change.
+- If production migrations are skipped, Google OAuth can reach the callback successfully while login still fails on the first app query with missing-table errors such as `The table public.User does not exist in the current database.`
 - `BLOB_STORAGE_BACKEND` must be `vercel-blob` in production and `BLOB_READ_WRITE_TOKEN` must be present.
 - Evidence uploads now go directly to Blob from the browser and finalize server-side, which preserves the shipped 10 MB evidence limit in Vercel-compatible runtimes.
 - `NEXTAUTH_URL` should match the public app origin used in the Google OAuth configuration.
 - `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET` must come from a Google OAuth client that uses `/api/auth/callback/google` on your deployed domain.
-- `npm run db:migrate:deploy` applies the checked-in Postgres SQL migrations from `prisma/postgres-migrations`.
+- `npm run db:migrate:production` applies the checked-in Postgres SQL migrations from `prisma/postgres-migrations` using `DIRECT_DATABASE_URL`.
+- `npm run db:migrate:deploy` remains as a compatibility alias for the same direct-Neon migration path.
 - The legacy SQLite migration files are retained only as pre-migration history; the Vercel/Neon production path uses `prisma/postgres-migrations`.
 - Markdown export is generated in-memory and streamed directly from the current approved or exported version. It does not rely on temp files.
 

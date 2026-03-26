@@ -1,21 +1,43 @@
 # Review Brief
 
-## Deployment-platform migration completed
-- Migrated the production platform target from SQLite plus local uploaded-file storage to Neon Postgres, Vercel Blob, and Vercel-compatible evidence upload/runtime behavior.
-- Preserved the shipped phase-1 workflow exactly: verified sign-in, workspace setup, evidence upload/processing, AI Profile, trust-pack generation, review, approval, and Markdown export.
-- No product scope or lifecycle behavior changed in this task.
+## Scope of this change
+- Slice / task: production migration execution fix for the Vercel launch path
+- Goal: remove ambiguity around applying the checked-in Neon Postgres schema before production traffic reaches the app
 
-## What migrated
-- Prisma runtime now uses Postgres with `DATABASE_URL` plus `DIRECT_DATABASE_URL`.
-- Production migrations now run through the checked-in Postgres SQL path in `prisma/postgres-migrations` via `scripts/apply-postgres-migrations.mjs`.
-- Evidence uploads now go directly to Blob from the browser and finalize server-side into the existing evidence-processing pipeline.
-- Evidence retry/processing now reads stored files through the storage layer instead of local filesystem paths.
-- Env validation, README, and launch runbook now describe the Vercel + Neon + Blob deployment shape.
+## What changed
+- Tightened the checked-in Postgres migration runner so the production path requires `DIRECT_DATABASE_URL` instead of silently falling back to the pooled runtime URL.
+- Added one explicit production command: `npm run db:migrate:production`.
+- Updated the README, launch runbook, env example, and handoff docs so operators know the exact migration step to run before first production launch and after future schema changes.
 
-## Remaining Vercel launch blockers, if any
-- No code-level Vercel blocker remains in the shipped wedge.
-- Launch still depends on provisioning the real Neon pooled/direct URLs, Vercel Blob token, Google OAuth production credentials, and `NEXTAUTH_URL` on the actual Vercel project.
+## Files touched
+- `package.json`
+- `.env.example`
+- `README.md`
+- `scripts/apply-postgres-migrations.mjs`
+- `docs/launch-runbook.md`
+- `docs/build-log.md`
+- `docs/context.md`
+- `docs/review-brief.md`
 
-## Why the wedge is or is not ready for Vercel deployment
-- The wedge is ready for Vercel deployment because the production database path is now Postgres-compatible, evidence storage no longer depends on local persistent disk, the Google OAuth model is already in place, and the full shipped wedge still passes end-to-end smoke coverage on the migrated stack.
-- The remaining work is deployment execution, not additional product or runtime migration work.
+## Assumptions introduced
+- Production Neon migrations should always use the direct Neon connection string in `DIRECT_DATABASE_URL`.
+- `DATABASE_URL` remains the pooled runtime connection string and is not the canonical operator path for production schema application.
+
+## Contract-sensitive areas
+- schema: unchanged
+- lifecycle: unchanged
+- UX/IA: unchanged
+- RBAC/auth: unchanged
+- evidence/generation/export: unchanged
+
+## Tests run
+- `npm run db:migrate:production -- --help`
+- `DATABASE_URL='postgresql://user:password@localhost:5432/attestly' npm run db:migrate:deploy`
+- result: production migration command is now explicit, and the deploy alias fails fast with a clear error when `DIRECT_DATABASE_URL` is missing
+
+## Risks / watchouts
+- Production login will continue to fail until the live Neon database has had `npm run db:migrate:production` run against it successfully.
+- Operators still need to wire the pooled Neon URL into `DATABASE_URL` and the direct Neon URL into `DIRECT_DATABASE_URL` correctly in Vercel.
+
+## Recommended next step
+- Run `npm run db:migrate:production` against the production Neon database, then retry Google OAuth login on the live Vercel deployment.

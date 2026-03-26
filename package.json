@@ -1,0 +1,35 @@
+{
+  "name": "attestly-v2",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev",
+    "build": "next build",
+    "start": "next start",
+    "postinstall": "prisma generate",
+    "test": "vitest run",
+    "prisma:generate": "prisma generate",
+    "db:init": "node scripts/apply-postgres-migrations.mjs",
+    "db:migrate:deploy": "node scripts/apply-postgres-migrations.mjs",
+    "db:reset:local": "node scripts/reset-postgres-database.mjs"
+  },
+  "dependencies": {
+    "@prisma/client": "^5.19.1",
+    "@vercel/blob": "^2.3.1",
+    "next": "^14.2.30",
+    "next-auth": "^4.24.13",
+    "pdf-parse": "^1.1.1",
+    "pg": "^8.20.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/pg": "^8.20.0",
+    "@types/react": "^18.3.18",
+    "@types/react-dom": "^18.3.5",
+    "prisma": "^5.19.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}

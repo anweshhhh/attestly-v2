@@ -1,0 +1,272 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_DATABASE_URL")
+}
+
+model User {
+  id                         String                  @id @default(cuid())
+  email                      String                  @unique
+  name                       String?
+  createdAt                  DateTime                @default(now())
+  updatedAt                  DateTime                @updatedAt
+  lastUsedWorkspaceId        String?
+  lastUsedWorkspace          Workspace?              @relation("UserLastUsedWorkspace", fields: [lastUsedWorkspaceId], references: [id], onDelete: SetNull)
+  memberships                Membership[]
+  sessions                   Session[]
+  startedAIProfileDrafts     AIProfileDraftSession[] @relation("AIProfileDraftStartedBy")
+  attestedAIProfiles         AIProfile[]             @relation("AIProfileAttestedBy")
+  createdTrustPacks          TrustPack[]             @relation("TrustPackCreatedBy")
+  createdTrustPackVersions   TrustPackVersion[]      @relation("TrustPackVersionCreatedBy")
+  approvedTrustPackVersions  ApprovalRecord[]        @relation("TrustPackVersionApprovedBy")
+  exportedTrustPackVersions  ExportRecord[]          @relation("TrustPackVersionExportedBy")
+}
+
+model Session {
+  id         String   @id @default(cuid())
+  tokenHash  String   @unique
+  userId     String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Workspace {
+  id                     String                  @id @default(cuid())
+  name                   String
+  slug                   String                  @unique
+  createdAt              DateTime                @default(now())
+  updatedAt              DateTime                @updatedAt
+  memberships            Membership[]
+  evidenceDocs           EvidenceDocument[]
+  aiProfileDraftSessions AIProfileDraftSession[]
+  aiProfiles             AIProfile[]
+  trustPack              TrustPack?
+  lastUsedByUsers        User[]                  @relation("UserLastUsedWorkspace")
+}
+
+model Membership {
+  id          String         @id @default(cuid())
+  workspaceId String
+  userId      String
+  role        String
+  createdAt   DateTime       @default(now())
+  updatedAt   DateTime       @updatedAt
+  workspace   Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user        User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+}
+
+model EvidenceDocument {
+  id                  String         @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  name                String
+  originalName        String
+  mimeType            String
+  storagePath         String
+  byteSize            Int
+  status              String         @default("UPLOADED")
+  uploadedByUserId    String
+  errorMessage        String?
+  evidenceFingerprint String?
+  chunkCount          Int            @default(0)
+  archivedAt          DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+  chunks              EvidenceChunk[]
+  citations           Citation[]
+
+  @@index([workspaceId, createdAt])
+  @@index([workspaceId, status])
+}
+
+model EvidenceChunk {
+  id                  String           @id @default(cuid())
+  documentId          String
+  document            EvidenceDocument @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  chunkIndex          Int
+  content             String
+  evidenceFingerprint String
+  createdAt           DateTime         @default(now())
+  citations           Citation[]
+
+  @@unique([documentId, chunkIndex])
+}
+
+model AIProfileDraftSession {
+  id                  String      @id @default(cuid())
+  workspaceId         String
+  workspace           Workspace   @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  basedOnAIProfileId  String?
+  basedOnAIProfile    AIProfile?  @relation("AIProfileDraftBasedOn", fields: [basedOnAIProfileId], references: [id], onDelete: SetNull)
+  status              String      @default("IN_PROGRESS")
+  currentStepKey      String      @default("COMPANY_PRODUCT_BASICS")
+  draftPayloadJson    String
+  fieldStateJson      String
+  schemaVersion       Int         @default(1)
+  startedByUserId     String
+  startedByUser       User        @relation("AIProfileDraftStartedBy", fields: [startedByUserId], references: [id], onDelete: Cascade)
+  completedAIProfileId String?
+  completedAIProfile  AIProfile?  @relation("AIProfileDraftCompletedVersion", fields: [completedAIProfileId], references: [id], onDelete: SetNull)
+  lastSavedAt         DateTime    @default(now())
+  createdAt           DateTime    @default(now())
+  updatedAt           DateTime    @updatedAt
+
+  @@index([workspaceId, status])
+  @@index([workspaceId, createdAt])
+}
+
+model AIProfile {
+  id                     String                  @id @default(cuid())
+  workspaceId            String
+  workspace              Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  versionNumber          Int
+  aiUsageMode            String
+  payloadJson            String
+  fieldStateJson         String
+  schemaVersion          Int
+  attestedByUserId       String
+  attestedByUser         User                    @relation("AIProfileAttestedBy", fields: [attestedByUserId], references: [id], onDelete: Cascade)
+  createdAt              DateTime                @default(now())
+  draftSessionsBasedOn   AIProfileDraftSession[] @relation("AIProfileDraftBasedOn")
+  draftSessionsCompleted AIProfileDraftSession[] @relation("AIProfileDraftCompletedVersion")
+  trustPackVersions      TrustPackVersion[]
+  citations              Citation[]
+
+  @@unique([workspaceId, versionNumber])
+  @@index([workspaceId, createdAt])
+}
+
+model TrustPack {
+  id               String             @id @default(cuid())
+  workspaceId      String             @unique
+  workspace        Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  title            String
+  currentVersionId String?            @unique
+  currentVersion   TrustPackVersion?  @relation("TrustPackCurrentVersion", fields: [currentVersionId], references: [id], onDelete: SetNull)
+  createdByUserId  String
+  createdByUser    User               @relation("TrustPackCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt        DateTime           @default(now())
+  updatedAt        DateTime           @updatedAt
+  versions         TrustPackVersion[] @relation("TrustPackVersions")
+}
+
+model TrustPackVersion {
+  id                  String             @id @default(cuid())
+  trustPackId         String
+  trustPack           TrustPack          @relation("TrustPackVersions", fields: [trustPackId], references: [id], onDelete: Cascade)
+  versionNumber       Int
+  status              String             @default("DRAFT")
+  aiProfileId         String
+  aiProfile           AIProfile          @relation(fields: [aiProfileId], references: [id], onDelete: Restrict)
+  createdFromVersionId String?
+  createdFromVersion  TrustPackVersion?  @relation("TrustPackVersionLineage", fields: [createdFromVersionId], references: [id], onDelete: SetNull)
+  childVersions       TrustPackVersion[] @relation("TrustPackVersionLineage")
+  currentForTrustPack TrustPack?         @relation("TrustPackCurrentVersion")
+  generationInputHash String?
+  createdByUserId     String
+  createdByUser       User               @relation("TrustPackVersionCreatedBy", fields: [createdByUserId], references: [id], onDelete: Cascade)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  sections            TrustPackSection[]
+  approvalRecord      ApprovalRecord?
+  exportRecords       ExportRecord[]
+
+  @@unique([trustPackId, versionNumber])
+  @@index([trustPackId, status])
+}
+
+model ApprovalRecord {
+  id                 String           @id @default(cuid())
+  trustPackVersionId String           @unique
+  trustPackVersion   TrustPackVersion @relation(fields: [trustPackVersionId], references: [id], onDelete: Cascade)
+  approvedByUserId   String
+  approvedByUser     User             @relation("TrustPackVersionApprovedBy", fields: [approvedByUserId], references: [id], onDelete: Cascade)
+  note               String?
+  createdAt          DateTime         @default(now())
+
+  @@index([approvedByUserId])
+}
+
+model TrustPackSection {
+  id                 String           @id @default(cuid())
+  trustPackVersionId String
+  trustPackVersion   TrustPackVersion @relation(fields: [trustPackVersionId], references: [id], onDelete: Cascade)
+  key                String
+  title              String
+  orderIndex         Int
+  summaryText        String?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  claims             TrustPackClaim[]
+
+  @@unique([trustPackVersionId, key])
+  @@unique([trustPackVersionId, orderIndex])
+  @@index([trustPackVersionId, orderIndex])
+}
+
+model TrustPackClaim {
+  id                 String           @id @default(cuid())
+  sectionId          String
+  section            TrustPackSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  key                String
+  prompt             String
+  answerText         String?
+  status             String
+  origin             String           @default("GENERATED")
+  missingDetailsText String?
+  orderIndex         Int
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  citations          Citation[]
+
+  @@unique([sectionId, key])
+  @@unique([sectionId, orderIndex])
+  @@index([sectionId, status])
+}
+
+model Citation {
+  id               String          @id @default(cuid())
+  claimId          String
+  claim            TrustPackClaim  @relation(fields: [claimId], references: [id], onDelete: Cascade)
+  sourceType       String
+  sourceDocumentId String?
+  sourceDocument   EvidenceDocument? @relation(fields: [sourceDocumentId], references: [id], onDelete: Restrict)
+  sourceChunkId    String?
+  sourceChunk      EvidenceChunk?  @relation(fields: [sourceChunkId], references: [id], onDelete: Restrict)
+  sourceAIProfileId String?
+  sourceAIProfile  AIProfile?      @relation(fields: [sourceAIProfileId], references: [id], onDelete: Restrict)
+  sourceFieldPath  String?
+  quotedSnippet    String?
+  locator          String?
+  orderIndex       Int
+  createdAt        DateTime        @default(now())
+
+  @@index([claimId, orderIndex])
+  @@index([sourceDocumentId])
+  @@index([sourceChunkId])
+  @@index([sourceAIProfileId])
+}
+
+model ExportRecord {
+  id                 String           @id @default(cuid())
+  trustPackVersionId String
+  trustPackVersion   TrustPackVersion @relation(fields: [trustPackVersionId], references: [id], onDelete: Cascade)
+  format             String
+  exportedByUserId   String
+  exportedByUser     User             @relation("TrustPackVersionExportedBy", fields: [exportedByUserId], references: [id], onDelete: Cascade)
+  createdAt          DateTime         @default(now())
+
+  @@index([trustPackVersionId, createdAt])
+  @@index([exportedByUserId])
+}
